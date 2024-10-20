@@ -3,7 +3,8 @@ import { Input } from './Form/Input'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import * as ToggleGroup from '@radix-ui/react-toggle-group'
-import { useEffect, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
+import axios from 'axios'
 
 interface Game {
   id: string
@@ -13,14 +14,37 @@ interface Game {
 export function CreateAtModal() {
   const [games, setGames] = useState<Game[]>([])
   const [weekDays, setWeekDays] = useState<string[]>([])
+  const [useVoiceChannel, setUseVoiceChannel] = useState(false)
 
   useEffect(() => {
-    fetch('http://localhost:3333/games')
-      .then(response => response.json())
-      .then(data => {
-        setGames(data)
+    axios('http://localhost:3333/games').then(response => {
+        setGames(response.data)
       })
   }, [])
+
+  async function handleCreateAt(event: FormEvent) {
+    event.preventDefault()
+
+    const formData = new FormData(event.target as HTMLFormElement)
+    const data = Object.fromEntries(formData)
+
+    try {
+      await axios.post(`http://localhost:3333/games/${data.game}/ads`, {
+        name: data.name,
+        yearsPlaying: Number(data.yearsPlaying),
+        discord: data.discord,
+        weekDays: weekDays.map(Number),
+        hourStart: data.hourStart,
+        hourEnd: data.hourEnd,
+        useVoiceChannel: useVoiceChannel
+      })
+
+      alert('Anuncio criado com sucesso!')
+    } catch (err) {
+      console.log(err)
+      alert('Erro ao criar o anuncio!')
+    }
+  }
 
   return (
     <Dialog.Portal>
@@ -28,11 +52,12 @@ export function CreateAtModal() {
       <Dialog.Content className="fixed bg-[#2A2634] py-8 px-10 text-white top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg w-[480px] shadow-lg shadow-black/25">
         <Dialog.Title className="text-3xl font-black">Publique um anuncio</Dialog.Title>
         {/*<Dialog.Description>*/}
-          <form className="mt-6 flex flex-col gap-2">
+          <form onSubmit={handleCreateAt} className="mt-6 flex flex-col gap-2">
             <div className="flex flex-col gap-2">
               <label htmlFor="game" className="font-semibold">Qual o Game?</label>
               <select 
                 id="game"
+                name="game"
                 className="bg-zinc-900 py-3 px-4 rounded text-sm placeholder:text-zinc-500 appearance-none"
                 defaultValue=""
               >
@@ -44,17 +69,17 @@ export function CreateAtModal() {
 
             <div className="flex flex-col gap-2">
               <label htmlFor="name">Seu nome (ou nickname)</label>
-              <Input id="name" placeholder="Como ti chamam dentro do Game?" />
+              <Input name="name" id="name" placeholder="Como ti chamam dentro do Game?" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-2">
                 <label htmlFor="yearsPlaying">Joga a quantos anos?</label>
-                <Input id="yearsPlaying" type="number" placeholder="Tudo bem ser ZERO" />
+                <Input name="yearsPlaying" id="yearsPlaying" type="number" placeholder="Tudo bem ser ZERO" />
               </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="discord">Qual seu Discord?</label>
-                <Input id="discord" placeholder="Usario#003400" />
+                <Input name="discord" id="discord" placeholder="Usario#003400" />
                 </div>
               </div>
 
@@ -118,31 +143,44 @@ export function CreateAtModal() {
                     </ToggleGroup.Item>
                   </ToggleGroup.Root>
                 </div>
+
                 <div className="flex flex-col gap-2 flex-1">
                   <label htmlFor="hourStart">Qual horario do dia?</label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input 
-                      id="hourStart" 
+                      id="hourStart"
+                      name="hourStart"
                       type="time" 
                       placeholder="De" 
                     />
                     <Input 
-                      id="hourEnd" 
-                      type="time" 
+                      id="hourEnd"
+                      name="hourEnd"
+                      type="time"
                       placeholder="Ate" 
                     />
                   </div>
+                </div>
               </div>
-            </div>
 
-            <label className="mt-2 flex items-center gap-2 text-sm">
-              <Checkbox.Root className="w-6 h-6 p-1 rounded bg-zinc-900">
-                <Checkbox.Indicator>
-                  <Check className="w-4 h-4 text-emerald-400" />
-                </Checkbox.Indicator>
-              </Checkbox.Root>
-              Costumo me conectar ao chat de voz
-            </label>
+              <label className="mt-2 flex items-center gap-2 text-sm">
+                <Checkbox.Root
+                  checked={useVoiceChannel}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) {
+                      setUseVoiceChannel(true)
+                    } else {
+                      setUseVoiceChannel(false)
+                    }
+                  }}
+                  className="w-6 h-6 p-1 rounded bg-zinc-900"
+                >
+                  <Checkbox.Indicator>
+                    <Check className="w-4 h-4 text-emerald-400" />
+                  </Checkbox.Indicator>
+                </Checkbox.Root>
+                Costumo me conectar ao chat de voz
+              </label>
 
             <footer className="mt-4 flex justify-end gap-4">
               <Dialog.Close
